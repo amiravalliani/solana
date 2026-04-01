@@ -1,0 +1,258 @@
+
+<style>
+  * { box-sizing: border-box; }
+  .card { background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 1.25rem; }
+  .card-label { font-size: 11px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-tertiary); margin-bottom: 14px; }
+  .step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 9px; opacity: .25; transition: opacity .35s ease; }
+  .step.active { opacity: 1; }
+  .step-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+  .connector { width: 1px; height: 20px; background: var(--color-border-tertiary); margin: 3px auto 0; }
+  .step-label { font-size: 12px; color: var(--color-text-secondary); line-height: 1.4; }
+  .step-tag { display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 20px; margin-top: 3px; }
+  .tag-cost  { background: var(--color-background-danger);  color: var(--color-text-danger); }
+  .tag-ops   { background: var(--color-background-warning); color: var(--color-text-warning); }
+  .tag-lock  { background: var(--color-background-secondary); color: var(--color-text-tertiary); border: 0.5px solid var(--color-border-secondary); }
+  .tag-good  { background: var(--color-background-success); color: var(--color-text-success); }
+  .tag-info  { background: var(--color-background-info);    color: var(--color-text-info); }
+  .track { height: 6px; background: var(--color-border-tertiary); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+  .bar { height: 100%; border-radius: 3px; width: 0%; transition: width .12s linear; }
+  .track-labels { display: flex; justify-content: space-between; margin-top: 5px; }
+  .track-edge { font-size: 11px; color: var(--color-text-tertiary); }
+  .track-current { font-size: 12px; font-weight: 500; }
+  .status-badge { font-size: 11px; padding: 3px 8px; border-radius: 20px; font-weight: 500; background: var(--color-background-warning); color: var(--color-text-warning); transition: background .3s, color .3s; }
+  .status-badge.done { background: var(--color-background-success); color: var(--color-text-success); }
+  .outcome-row { margin-top: 10px; padding-top: 10px; border-top: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; gap: 5px; opacity: 0; transition: opacity .4s ease; }
+  .outcome-row.visible { opacity: 1; }
+  .outcome-line { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+  .outcome-label { color: var(--color-text-secondary); }
+  .outcome-val { font-weight: 500; }
+  .outcome-val.bad  { color: var(--color-text-danger); }
+  .outcome-val.warn { color: var(--color-text-warning); }
+  .outcome-val.good { color: var(--color-text-success); }
+  .outcome-val.info { color: var(--color-text-info); }
+
+  .neobank-panel {
+    margin-top: 14px;
+    background: var(--color-background-info);
+    border-radius: var(--border-radius-lg);
+    border: 0.5px solid var(--color-border-info);
+    padding: 1rem 1.25rem;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity .5s ease, transform .5s ease;
+    pointer-events: none;
+  }
+  .neobank-panel.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .neobank-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .neobank-title { font-size: 12px; font-weight: 500; color: var(--color-text-info); letter-spacing: .04em; text-transform: uppercase; }
+  .neobank-sub { font-size: 12px; color: var(--color-text-info); opacity: .8; }
+  .product-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .product-card { background: var(--color-background-primary); border-radius: var(--border-radius-md); padding: .625rem .75rem; border: 0.5px solid var(--color-border-info); }
+  .product-icon { font-size: 16px; margin-bottom: 4px; }
+  .product-name { font-size: 11px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 2px; }
+  .product-desc { font-size: 10px; color: var(--color-text-secondary); line-height: 1.4; }
+
+  .yield-ticker { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; color: var(--color-text-success); background: var(--color-background-success); padding: 2px 8px; border-radius: 20px; }
+  .yield-val { font-variant-numeric: tabular-nums; min-width: 44px; }
+
+  .btn-row { text-align: center; margin-top: 14px; }
+  button { background: none; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 24px; font-size: 13px; cursor: pointer; color: var(--color-text-primary); font-family: inherit; }
+  button:hover { background: var(--color-background-secondary); }
+</style>
+
+<div style="padding: 1rem 0;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <span class="card-label">Traditional payout orchestration</span>
+        <span class="status-badge" id="trad-status">Waiting</span>
+      </div>
+      <div class="step" id="ts1">
+        <div class="step-left"><div class="dot" style="background:#E24B4A;"></div><div class="connector"></div></div>
+        <div><div class="step-label">Schedule monthly payout run</div><span class="step-tag tag-ops">Ops overhead</span></div>
+      </div>
+      <div class="step" id="ts2">
+        <div class="step-left"><div class="dot" style="background:#E24B4A;"></div><div class="connector"></div></div>
+        <div><div class="step-label">Route via payout aggregator</div><span class="step-tag tag-cost">1–3% fee</span></div>
+      </div>
+      <div class="step" id="ts3">
+        <div class="step-left"><div class="dot" style="background:#E24B4A;"></div><div class="connector"></div></div>
+        <div><div class="step-label">Local PSP per country — manage 20+ relationships</div><span class="step-tag tag-ops">Ops overhead</span></div>
+      </div>
+      <div class="step" id="ts4">
+        <div class="step-left"><div class="dot" style="background:#E24B4A;"></div><div class="connector"></div></div>
+        <div><div class="step-label">FX conversion at local rail</div><span class="step-tag tag-cost">0.5–2% markup</span></div>
+      </div>
+      <div class="step" id="ts5">
+        <div class="step-left"><div class="dot" style="background:#E24B4A;"></div></div>
+        <div><div class="step-label">Recipient receives local currency — no choice to hold in USD</div><span class="step-tag tag-lock">Forced conversion</span></div>
+      </div>
+      <div class="track"><div class="bar" id="trad-bar" style="background:#E24B4A;"></div></div>
+      <div class="track-labels">
+        <span class="track-edge">Day 1</span>
+        <span class="track-current" style="color:var(--color-text-danger);" id="trad-time">—</span>
+        <span class="track-edge">Day 7+</span>
+      </div>
+      <div class="outcome-row" id="trad-outcomes">
+        <div class="outcome-line"><span class="outcome-label">Platform fees</span><span class="outcome-val bad">2.5–5% of payout</span></div>
+        <div class="outcome-line"><span class="outcome-label">Reconciliation</span><span class="outcome-val warn">Manual, error-prone</span></div>
+        <div class="outcome-line"><span class="outcome-label">Recipient holds USD?</span><span class="outcome-val bad">Not possible</span></div>
+        <div class="outcome-line"><span class="outcome-label">Yield on balance</span><span class="outcome-val bad">None</span></div>
+        <div class="outcome-line"><span class="outcome-label">Platform financial products</span><span class="outcome-val bad">Not available</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <span class="card-label">Solana-powered payouts</span>
+        <span class="status-badge" id="sol-status">Waiting</span>
+      </div>
+      <div class="step" id="ss1">
+        <div class="step-left"><div class="dot" style="background:#1D9E75;"></div><div class="connector"></div></div>
+        <div><div class="step-label">Work completed — payout triggered automatically</div><span class="step-tag tag-good">Continuous</span></div>
+      </div>
+      <div class="step" id="ss2">
+        <div class="step-left"><div class="dot" style="background:#1D9E75;"></div><div class="connector"></div></div>
+        <div><div class="step-label">USD-backed stablecoin transferred on Solana</div><span class="step-tag tag-good">~$0.00025/tx</span></div>
+      </div>
+      <div class="step" id="ss3">
+        <div class="step-left"><div class="dot" style="background:#1D9E75;"></div><div class="connector"></div></div>
+        <div><div class="step-label">Recipient wallet credited — any country, same flow</div><span class="step-tag tag-good">No PSP patchwork</span></div>
+      </div>
+      <div class="step" id="ss4">
+        <div class="step-left"><div class="dot" style="background:#1D9E75;"></div><div class="connector"></div></div>
+        <div><div class="step-label">Recipient chooses: hold stablecoin, spend via card, or offramp on their schedule</div><span class="step-tag tag-good">Full optionality</span></div>
+      </div>
+      <div class="step" id="ss5">
+        <div class="step-left"><div class="dot" style="background:#378ADD;"></div></div>
+        <div>
+          <div class="step-label">Balance earns yield automatically — T-bill backed rates</div>
+          <span class="step-tag tag-info">Passive yield</span>
+          <span id="yield-ticker" class="yield-ticker" style="display:none;margin-left:6px;">
+            +<span class="yield-val" id="yield-val">$0.00</span>
+          </span>
+        </div>
+      </div>
+      <div class="track"><div class="bar" id="sol-bar" style="background:#1D9E75;"></div></div>
+      <div class="track-labels">
+        <span class="track-edge">0</span>
+        <span class="track-current" style="color:var(--color-text-success);" id="sol-time">—</span>
+        <span class="track-edge">~400ms</span>
+      </div>
+      <div class="outcome-row" id="sol-outcomes">
+        <div class="outcome-line"><span class="outcome-label">Platform fees</span><span class="outcome-val good">&lt;0.01% of payout</span></div>
+        <div class="outcome-line"><span class="outcome-label">Reconciliation</span><span class="outcome-val good">On-chain, automatic</span></div>
+        <div class="outcome-line"><span class="outcome-label">Recipient holds USD?</span><span class="outcome-val good">Yes — natively</span></div>
+        <div class="outcome-line"><span class="outcome-label">Yield on balance</span><span class="outcome-val good">Yes — auto-accruing</span></div>
+        <div class="outcome-line"><span class="outcome-label">Platform financial products</span><span class="outcome-val info">Cards, credit, savings</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="neobank-panel" id="neobank-panel">
+    <div class="neobank-header">
+      <span class="neobank-title">What the platform can now offer</span>
+      <span class="neobank-sub">Creator financial profile unlocked</span>
+    </div>
+    <div class="product-grid">
+      <div class="product-card">
+        <div class="product-icon">💳</div>
+        <div class="product-name">Spend card</div>
+        <div class="product-desc">Spend stablecoin balance anywhere, instantly</div>
+      </div>
+      <div class="product-card">
+        <div class="product-icon">📈</div>
+        <div class="product-name">Yield account</div>
+        <div class="product-desc">T-bill backed yield on idle balance, auto-accruing</div>
+      </div>
+      <div class="product-card">
+        <div class="product-icon">💰</div>
+        <div class="product-name">Earned wage access</div>
+        <div class="product-desc">Draw against pending earnings before payout run</div>
+      </div>
+      <div class="product-card">
+        <div class="product-icon">🌍</div>
+        <div class="product-name">Local offramp</div>
+        <div class="product-desc">Convert to local currency on the creator's schedule</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button id="run-btn" onclick="run()">Run simulation ↗</button>
+  </div>
+</div>
+
+<script>
+let running = false, yieldInterval = null;
+const tradSteps = [
+  { id:'ts1', delay:0,    time:'Day 1' },
+  { id:'ts2', delay:700,  time:'Day 2' },
+  { id:'ts3', delay:1400, time:'Day 3' },
+  { id:'ts4', delay:2200, time:'Day 5' },
+  { id:'ts5', delay:3000, time:'Day 7' },
+];
+const solSteps = [
+  { id:'ss1', delay:0,    time:'0ms' },
+  { id:'ss2', delay:350,  time:'200ms' },
+  { id:'ss3', delay:650,  time:'350ms' },
+  { id:'ss4', delay:900,  time:'400ms' },
+  { id:'ss5', delay:1100, time:'400ms+' },
+];
+
+function reset() {
+  clearInterval(yieldInterval);
+  [...tradSteps, ...solSteps].forEach(s => document.getElementById(s.id).classList.remove('active'));
+  ['trad-bar','sol-bar'].forEach(id => document.getElementById(id).style.width = '0%');
+  ['trad-time','sol-time'].forEach(id => document.getElementById(id).textContent = '—');
+  ['trad-status','sol-status'].forEach(id => { const el = document.getElementById(id); el.textContent = 'Waiting'; el.classList.remove('done'); });
+  ['trad-outcomes','sol-outcomes'].forEach(id => document.getElementById(id).classList.remove('visible'));
+  document.getElementById('neobank-panel').classList.remove('visible');
+  document.getElementById('yield-ticker').style.display = 'none';
+  document.getElementById('yield-val').textContent = '$0.00';
+}
+
+function startYieldTicker() {
+  const ticker = document.getElementById('yield-ticker');
+  const val = document.getElementById('yield-val');
+  ticker.style.display = 'inline-flex';
+  let cents = 0;
+  yieldInterval = setInterval(() => {
+    cents += 0.03;
+    val.textContent = '$' + cents.toFixed(2);
+  }, 80);
+}
+
+function run() {
+  if (running) { reset(); running = false; document.getElementById('run-btn').textContent = 'Run simulation ↗'; return; }
+  running = true; reset();
+  document.getElementById('run-btn').textContent = 'Reset';
+  const TRAD_DUR = 4200, SOL_DUR = 1000;
+
+  tradSteps.forEach(s => { setTimeout(() => { document.getElementById(s.id).classList.add('active'); document.getElementById('trad-time').textContent = s.time; }, s.delay); });
+  const tStart = Date.now();
+  (function animT() {
+    const pct = Math.min(((Date.now()-tStart)/TRAD_DUR)*100,100);
+    document.getElementById('trad-bar').style.width = pct.toFixed(1)+'%';
+    if (pct < 100) requestAnimationFrame(animT);
+    else { const s=document.getElementById('trad-status'); s.textContent='Complete'; s.classList.add('done'); document.getElementById('trad-time').textContent='Day 7+'; document.getElementById('trad-outcomes').classList.add('visible'); running=false; }
+  })();
+
+  solSteps.forEach(s => { setTimeout(() => { document.getElementById(s.id).classList.add('active'); document.getElementById('sol-time').textContent = s.time; if (s.id === 'ss5') startYieldTicker(); }, s.delay); });
+  const sStart = Date.now();
+  (function animS() {
+    const pct = Math.min(((Date.now()-sStart)/SOL_DUR)*100,100);
+    document.getElementById('sol-bar').style.width = pct.toFixed(1)+'%';
+    if (pct < 100) requestAnimationFrame(animS);
+    else {
+      const s=document.getElementById('sol-status'); s.textContent='Complete'; s.classList.add('done');
+      document.getElementById('sol-time').textContent='~400ms';
+      document.getElementById('sol-outcomes').classList.add('visible');
+      setTimeout(() => document.getElementById('neobank-panel').classList.add('visible'), 400);
+    }
+  })();
+}
+</script>
